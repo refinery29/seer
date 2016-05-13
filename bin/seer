@@ -24,6 +24,12 @@ except ImportError:
         """Support colored function when termcolor isn't available"""
         assert color, "color must be defined"
         return string
+
+try:
+    import git
+except ImportError:
+    pass
+
 try:
     from watchdog.observers import Observer
     from watchdog.events import RegexMatchingEventHandler
@@ -42,7 +48,7 @@ class CiRunner(object):
     """Runner class for testing."""
 
     @classmethod
-    def run_scripts(cls, ci_test_file, exit_after_fail=False):
+    def run_scripts(self, ci_test_file, exit_after_fail=False):
         """Run the scripts defined in the ci_test_file"""
         rcs = []
 
@@ -67,8 +73,15 @@ class CiRunner(object):
         if exit_after_fail and rcs:
             exit(max(rcs))
 
+    def run_modified(self, flag_files=['makefile'], test_command='make test'):
+        repo = git.Git('.')
+        diff_files = repo.diff('master..HEAD', '--name-only').split('\n')
+        test_dirs = None # find all directories containing flag files
+        # for each diff file which exists in a test_dir
+        #     run the test_command
+
     @classmethod
-    def watch_repo(cls, ci_test_file):
+    def watch_repo(self, ci_test_file):
         """Watch the directory tree starting at the current
            directory and run scripts if changes are made.
         """
