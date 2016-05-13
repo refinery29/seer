@@ -3,7 +3,7 @@
 # pylint: disable=anomalous-backslash-in-string,too-few-public-methods,no-self-use,wrong-import-position
 
 """
-citest
+seer
 
 A runner which supports .travis.yml config files for testing.
 """
