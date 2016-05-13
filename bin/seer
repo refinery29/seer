@@ -23,6 +23,11 @@ except ImportError:
     pass
 
 try:
+    import git
+except ImportError:
+    pass
+
+try:
     from watchdog.observers import Observer
     from watchdog.events import RegexMatchingEventHandler
 except ImportError:
@@ -49,11 +54,11 @@ def run_scripts(ci_test_file, exit_after_fail=False, colored=(lambda s, c: s)):
                 return_code = subprocess.call(script, shell=True)
             except KeyboardInterrupt:
                 print(colored('Aborting, try again later ;)', 'blue'))
+                exit()
 
             if return_code != 0:
                 rcs.append(return_code)
                 print(colored('Script {} failed with {}'.format(script, return_code), 'red'))
-
     if rcs:
         print(colored('Scripts failed :(', 'red'))
     else:
@@ -61,6 +66,14 @@ def run_scripts(ci_test_file, exit_after_fail=False, colored=(lambda s, c: s)):
 
     if exit_after_fail and rcs:
         exit(max(rcs))
+
+
+def run_modified(self, flag_files=['makefile'], test_command='make test'):
+    repo = git.Git('.')
+    diff_files = repo.diff('master..HEAD', '--name-only').split('\n')
+    test_dirs = None # find all directories containing flag files
+    # for each diff file which exists in a test_dir
+    #     run the test_command
 
 
 def watch_repo(ci_test_file, colored=(lambda s, c: s)):
