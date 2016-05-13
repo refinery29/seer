@@ -3,7 +3,7 @@
 # pylint: disable=anomalous-backslash-in-string,too-few-public-methods,no-self-use
 
 """
-citest
+seer
 
 A runner which supports .travis.yml config files for testing.
 """
@@ -33,9 +33,10 @@ except ImportError:
 WATCHDOG_AVAILABLE = bool('Observer' in globals())
 
 WATCH_HELP = 'Watch the current directory for changes and run the ci tests on changes'
-DEFAULT_TEST_FILES = ['.travis.yml', 'citest.yml']
+DEFAULT_TEST_FILES = ['.travis.yml', 'citest.yml', 'seer.yml']
 TEST_FILE_HELP = 'File where ci tests are defined. Looks by default for {}.'.format(
     ' or '.join(DEFAULT_TEST_FILES))
+
 
 class CiRunner(object):
     """Runner class for testing."""
@@ -65,7 +66,6 @@ class CiRunner(object):
 
         if exit_after_fail and rcs:
             exit(max(rcs))
-
 
     @classmethod
     def watch_repo(cls, ci_test_file):
@@ -98,9 +98,10 @@ class CiRunner(object):
             observer.stop()
         observer.join()
 
+
 def main():
     """handle arguments"""
-    argument_parser = argparse.ArgumentParser(prog='citest')
+    argument_parser = argparse.ArgumentParser(prog='seer')
     argument_parser.add_argument('--watch',
                                  action='store_true',
                                  help=WATCH_HELP)
