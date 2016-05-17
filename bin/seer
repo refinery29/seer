@@ -13,6 +13,7 @@ from __future__ import print_function
 import argparse
 import os
 import subprocess
+import sys
 import time
 
 import yaml
@@ -37,48 +38,65 @@ WATCHDOG_AVAILABLE = bool('Observer' in globals())
 TERMCOLOR_AVAILABLE = bool('termcolor' in globals())
 
 WATCH_HELP = 'Watch the current directory for changes and run the ci tests on changes'
-DEFAULT_TEST_FILES = ['seer.yml', 'citest.yml', 'ci.yml', '.travis.yml']
+DEFAULT_CI_FILES = ['seer.yml', 'citest.yml', 'ci.yml', '.travis.yml']
 TEST_FILE_HELP = 'File where ci tests are defined. Looks by default for {}.'.format(
-    ' or '.join(DEFAULT_TEST_FILES))
+    ' or '.join(DEFAULT_CI_FILES))
+DEFAULT_SECTIONS = ['script', 'modified']
+UNCOLORED = (lambda s, c: s)
 
-def run_scripts(ci_test_file, exit_after_fail=False, colored=(lambda s, c: s)):
-    """Run the scripts defined in the ci_test_file"""
-    colored = colored or (lambda s, c: s)
+def _run_scripts(scripts, exit_on_err=False, colored=UNCOLORED, directory='.'):
+    """Run the scripts"""
+    os.chdir(directory)
     rcs = []
+    for script in scripts:
+        print(colored('Running {}'.format(script), 'blue'))
+        return_code = _run_script(script)
 
-    with open(ci_test_file) as test_file:
-        for script in yaml.load(test_file)['script']:
-            print(colored('Running {}'.format(script), 'blue'))
-
-            try:
-                return_code = subprocess.call(script, shell=True)
-            except KeyboardInterrupt:
-                print(colored('Aborting, try again later ;)', 'blue'))
-                exit()
-
-            if return_code != 0:
-                rcs.append(return_code)
-                print(colored('Script {} failed with {}'.format(script, return_code), 'red'))
+        if return_code != 0:
+            rcs.append(return_code)
+            print(colored('Script {} failed with {}'.format(
+                script, return_code), 'red'))
     if rcs:
         print(colored('Scripts failed :(', 'red'))
     else:
         print(colored('Scripts passed :)', 'green'))
 
-    if exit_after_fail and rcs:
+    return rcs
+
+def _run_script(script, colored=UNCOLORED, directory='.'):
+    os.chdir(directory)
+    try:
+        return_code = subprocess.call(script, shell=True)
+    except KeyboardInterrupt:
+        print(colored('Aborting, try again later ;)', 'blue'))
+    return return_code
+
+def run_ci_file(ci_file,
+                colored=UNCOLORED,
+                exit_on_err=False,
+                sections=DEFAULT_SECTIONS):
+    with open(ci_file) as ci_file:
+        rcs = []
+        ci_definition = yaml.load(ci_file)
+        if 'script' in ci_definition and 'script' in sections:
+            new_rcs = _run_scripts(ci_definition['script'],
+                                   colored=colored,
+                                   exit_on_err=exit_on_err)
+            rcs.extend(new_rcs)
+
+        if 'modified' in ci_definition and 'modified' in sections:
+            modified = ci_definition['modified']
+            flag_files = modified['flag_files']
+            flag_files = flag_files if type(flag_files) is 'list' else [flag_files]
+            rcs.extend(_run_modified(flag_files,
+                                          modified['command']))
+    if exit_on_err and rcs:
         exit(max(rcs))
 
-
-def run_modified(self, flag_files=['makefile'], test_command='make test'):
-    repo = git.Git('.')
-    diff_files = repo.diff('master..HEAD', '--name-only').split('\n')
-    test_dirs = None # find all directories containing flag files
-    # for each diff file which exists in a test_dir
-    #     run the test_command
-
-
-def watch_repo(ci_test_file, colored=(lambda s, c: s)):
-    """Watch the directory tree starting at the current
-       directory and run scripts if changes are made.
+def watch_repo(ci_test_file, colored=UNCOLORED, sections=DEFAULT_SECTIONS):
+    """
+    Watch the directory tree starting at the current
+    directory and run scripts if changes are made.
     """
 
     class CIRunnerEventHandler(RegexMatchingEventHandler):
@@ -87,7 +105,7 @@ def watch_repo(ci_test_file, colored=(lambda s, c: s)):
             """Run scripts on any file change."""
             print(u'Detected that {} was {}, running travis tests…\n'.format(
                 event.src_path, event.event_type))
-            run_scripts(ci_test_file, colored=colored)
+            run_scripts(ci_test_file, colored=colored, sections=sections)
 
     path = os.path.realpath('.')
     print(colored('Watching {}'.format(path), 'green'))
@@ -106,25 +124,56 @@ def watch_repo(ci_test_file, colored=(lambda s, c: s)):
         observer.stop()
     observer.join()
 
-def main():
-    """handle arguments"""
+def _run_modified(colored=UNCOLORED, flag_files=['makefile'], scripts=['make test']):
+    repo = git.Git('.')
+    diff_files = repo.diff('origin/master..HEAD', '--name-only').split('\n')
+    flagged_dirs = map(
+        lambda f: os.path.dirname(f),
+        filter(
+            lambda git_file: len(
+                filter(lambda flag: flag in git_file, flag_files)
+            ) > 0,
+            repo.ls_files().split('\n')
+        )
+    )
+    modified_test_dirs = filter(lambda flagged_dir: len(
+        filter(lambda diff_file: flagged_dir in diff_file, diff_files)
+    ) > 0, flagged_dirs)
+
+    rcs = []
+    for modified_dir in modified_test_dirs:
+        _run_scripts(scripts, colored=colored, directory=modified_dir)
+    if rcs:
+        print(colored('Modified directory tests failed :(', 'red'))
+    else:
+        print(colored('Modified directory tests passed :)', 'green'))
+
+    return rcs
+
+def parse_args(args):
     argument_parser = argparse.ArgumentParser(prog='seer')
-    argument_parser.add_argument('-f', '--test-file',
+    argument_parser.add_argument('-f', '--ci-file',
                                  default=None,
                                  help=TEST_FILE_HELP)
+    argument_parser.add_argument('-m', '--modified',
+                                 action='store_true')
     argument_parser.add_argument('-p', '--no-color',
                                  action='store_true',
                                  help=TEST_FILE_HELP)
+    argument_parser.add_argument('-s', '--scripts',
+                                 action='store_true')
     argument_parser.add_argument('-w', '--watch',
                                  action='store_true',
                                  help=WATCH_HELP)
-    args = argument_parser.parse_args()
+    return (argument_parser.parse_args(args), argument_parser)
 
-    test_files = [args.test_file] + DEFAULT_TEST_FILES
+def main(args, argument_parser):
+    """handle arguments"""
+    ci_files = [args.ci_file] + DEFAULT_CI_FILES
 
-    test_file = None
-    for test_file in test_files:
-        if not test_file or not os.path.isfile(test_file):
+    ci_file = None
+    for ci_file in ci_files:
+        if not ci_file or not os.path.isfile(ci_file):
             continue
         else:
             break
@@ -141,7 +190,15 @@ def main():
     else:
         colored = termcolor.colored
 
-    run_scripts(test_file, not args.watch, colored=colored)
+    sections = []
+    if args.scripts:
+        sections.append('script')
+    if args.modified:
+        sections.append('modified')
+
+    exit_on_err = not args.watch
+    sections = sections or DEFAULT_SECTIONS
+    run_ci_file(ci_file, exit_on_err=exit_on_err, colored=colored, sections=sections)
 
     if args.watch:
 
@@ -149,7 +206,8 @@ def main():
             print(colored('Failed to import watchdog, watch option is unavailable.', 'red'))
             exit(4)
 
-        watch_repo(test_file, colored=colored)
+        watch_repo(test_file, colored=colored, sections=sections)
 
 if __name__ == '__main__':
-    main()
+    args, argument_parser = parse_args(sys.argv[1:])
+    main(args, argument_parser)
