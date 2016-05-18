@@ -55,9 +55,9 @@ def run_scripts(ci_test_file, exit_after_fail=False, colored=(lambda s, c: s)):
                 print(colored('Script {} failed with {}'.format(script, return_code), 'red'))
 
     if rcs:
-        print(colored('Scripts failed :(\n', 'red'))
+        print(colored('Scripts failed :(', 'red'))
     else:
-        print(colored('Scripts passed :)\n', 'green'))
+        print(colored('Scripts passed :)', 'green'))
 
     if exit_after_fail and rcs:
         exit(max(rcs))

@@ -4,6 +4,7 @@ Shared environment for seer tests
 """
 
 import os
+import shutil
 from subprocess import Popen, PIPE
 
 
@@ -26,10 +27,10 @@ def after_scenario(context, scenario):
     """
     Clean example directory
     """
+    raise Exception('after_scenario')
     example_file_path = os.path.realpath(
         os.path.join(COMMON_FILE_PATH, '..', '..', 'example'))
-    # pylint: disable=bad-builtin,deprecated-lambda
-    map(lambda f: os.remove(f), os.listdir(example_file_path))
+    shutil.rmtree(example_file_path)
 
 def run_command(command_args, cwd='.'):
     """
@@ -51,3 +52,19 @@ def run_command(command_args, cwd='.'):
     return dict(stdout=seer_call.stdout,
                 stderr=seer_call.stderr,
                 returncode=seer_call.returncode)
+
+def has_all_items(expected, actual):
+    """
+    Confirm actual list contains only and all expected items
+    """
+    actual_list = [unicode(l) for l in actual.split('\n')]
+    expected_list = [unicode(l) for l in expected.split('\n')]
+    failed = False
+    for line in actual_list:
+        try:
+            expected_list.remove(line)
+        except ValueError:
+            failed = True
+    if failed or expected_list:
+        raise Exception('Expected output \n\n"""\n{}\n"""\n did not match\n\n"""\n{}\n"""\n'.format(
+            expected, actual))

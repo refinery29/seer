@@ -37,21 +37,20 @@ def step_impl(context):
 @then(u'the seer.yml\'s scripts will be run')
 def step_impl(context):
     definition_file = context.active_outline['definition file']
-    output = context.response['stdout'].read()
+    output = context.response['stdout'].read().strip()
     expected = Template(context.text).render(definition_file=definition_file)
-    assert_that(output, equal_to(expected))
+    common.has_all_items(expected, output)
 
 @then(u'the .travis.yml\'s scripts will be run')
 def step_impl(context):
     definition_file = context.active_outline['definition file']
-    output = context.response['stdout'].read()
+    output = context.response['stdout'].read().strip()
     expected = Template(context.text).render(definition_file=definition_file)
-    assert_that(output, equal_to(expected))
+    common.has_all_items(expected, output)
 
 @then(u'the ci.yml\'s scripts will be run')
 def step_impl(context):
     definition_file = context.active_outline['definition file']
-    output = context.response['stdout'].read()
-    raise Exception("output=\n%s" % output)
+    output = context.response['stdout'].read().strip()
     expected = Template(context.text).render(definition_file=definition_file)
-    assert_that(output, equal_to(expected))
+    common.has_all_items(expected, output)
