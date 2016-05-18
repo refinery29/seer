@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf8 -*-
-# pylint: disable=anomalous-backslash-in-string,too-few-public-methods,no-self-use
+# pylint: disable=anomalous-backslash-in-string,too-few-public-methods,no-self-use,wrong-import-position
 
 """
 citest
@@ -18,12 +18,10 @@ import time
 import yaml
 
 try:
-    from termcolor import colored
+    import termcolor
 except ImportError:
-    def colored(string, color=None):
-        """Support colored function when termcolor isn't available"""
-        assert color, "color must be defined"
-        return string
+    pass
+
 try:
     from watchdog.observers import Observer
     from watchdog.events import RegexMatchingEventHandler
@@ -31,83 +29,82 @@ except ImportError:
     pass
 
 WATCHDOG_AVAILABLE = bool('Observer' in globals())
+TERMCOLOR_AVAILABLE = bool('termcolor' in globals())
 
 WATCH_HELP = 'Watch the current directory for changes and run the ci tests on changes'
-DEFAULT_TEST_FILES = ['seer.yml', 'citest.yml', '.travis.yml']
+DEFAULT_TEST_FILES = ['seer.yml', 'citest.yml', 'ci.yml', '.travis.yml']
 TEST_FILE_HELP = 'File where ci tests are defined. Looks by default for {}.'.format(
     ' or '.join(DEFAULT_TEST_FILES))
 
-class CiRunner(object):
-    """Runner class for testing."""
+def run_scripts(ci_test_file, exit_after_fail=False, colored=(lambda s, c: s)):
+    """Run the scripts defined in the ci_test_file"""
+    colored = colored or (lambda s, c: s)
+    rcs = []
 
-    @classmethod
-    def run_scripts(cls, ci_test_file, exit_after_fail=False):
-        """Run the scripts defined in the ci_test_file"""
-        rcs = []
+    with open(ci_test_file) as test_file:
+        for script in yaml.load(test_file)['script']:
+            print(colored('Running {}'.format(script), 'blue'))
 
-        with open(ci_test_file) as test_file:
-            for script in yaml.load(test_file)['script']:
-                print(colored('Running {}'.format(script), 'blue'))
+            try:
+                return_code = subprocess.call(script, shell=True)
+            except KeyboardInterrupt:
+                print(colored('Aborting, try again later ;)', 'blue'))
 
-                try:
-                    return_code = subprocess.call(script, shell=True)
-                except KeyboardInterrupt:
-                    print(colored('Aborting, try again later ;)', 'blue'))
+            if return_code != 0:
+                rcs.append(return_code)
+                print(colored('Script {} failed with {}'.format(script, return_code), 'red'))
 
-                if return_code != 0:
-                    rcs.append(return_code)
-                    print(colored('Script {} failed with {}'.format(script, return_code), 'red'))
+    if rcs:
+        print(colored('Scripts failed :(\n', 'red'))
+    else:
+        print(colored('Scripts passed :)\n', 'green'))
 
-        if rcs:
-            print(colored('Scripts failed :(\n', 'red'))
-        else:
-            print(colored('Scripts passed :)\n', 'green'))
-
-        if exit_after_fail and rcs:
-            exit(max(rcs))
+    if exit_after_fail and rcs:
+        exit(max(rcs))
 
 
-    @classmethod
-    def watch_repo(cls, ci_test_file):
-        """Watch the directory tree starting at the current
-           directory and run scripts if changes are made.
-        """
+def watch_repo(ci_test_file, colored=(lambda s, c: s)):
+    """Watch the directory tree starting at the current
+       directory and run scripts if changes are made.
+    """
 
-        class CIRunnerEventHandler(RegexMatchingEventHandler):
-            """Event handler for watchdog"""
-            def on_any_event(self, event):
-                """Run scripts on any file change."""
-                print(u'Detected that {} was {}, running travis tests…\n'.format(
-                    event.src_path, event.event_type))
-                CiRunner.run_scripts(ci_test_file)
+    class CIRunnerEventHandler(RegexMatchingEventHandler):
+        """Event handler for watchdog"""
+        def on_any_event(self, event):
+            """Run scripts on any file change."""
+            print(u'Detected that {} was {}, running travis tests…\n'.format(
+                event.src_path, event.event_type))
+            run_scripts(ci_test_file, colored=colored)
 
-        path = os.path.realpath('.')
-        print(colored('Watching {}'.format(path), 'green'))
-        ignore_regexes = ['.*\.git.*']
-        event_handler = CIRunnerEventHandler(ignore_regexes=ignore_regexes,
-                                             ignore_directories=True)
+    path = os.path.realpath('.')
+    print(colored('Watching {}'.format(path), 'green'))
+    ignore_regexes = ['.*\.git.*']
+    event_handler = CIRunnerEventHandler(ignore_regexes=ignore_regexes,
+                                         ignore_directories=True)
 
-        observer = Observer()
-        observer.schedule(event_handler, path, recursive=True)
-        observer.start()
+    observer = Observer()
+    observer.schedule(event_handler, path, recursive=True)
+    observer.start()
 
-        try:
-            while True:
-                time.sleep(1)
-        except KeyboardInterrupt:
-            observer.stop()
-        observer.join()
+    try:
+        while True:
+            time.sleep(1)
+    except KeyboardInterrupt:
+        observer.stop()
+    observer.join()
 
 def main():
     """handle arguments"""
     argument_parser = argparse.ArgumentParser(prog='seer')
-    argument_parser.add_argument('--watch',
-                                 action='store_true',
-                                 help=WATCH_HELP)
-    argument_parser.add_argument('-f',
-                                 '--test-file',
+    argument_parser.add_argument('-f', '--test-file',
                                  default=None,
                                  help=TEST_FILE_HELP)
+    argument_parser.add_argument('-p', '--no-color',
+                                 action='store_true',
+                                 help=TEST_FILE_HELP)
+    argument_parser.add_argument('-w', '--watch',
+                                 action='store_true',
+                                 help=WATCH_HELP)
     args = argument_parser.parse_args()
 
     test_files = [args.test_file] + DEFAULT_TEST_FILES
@@ -122,15 +119,24 @@ def main():
         argument_parser.print_help()
         exit(1)
 
+    if not TERMCOLOR_AVAILABLE or args.no_color:
+        # pylint: disable=redefined-outer-name,unused-argument
+        def nocolored(string, color=None):
+            """No color replacement for colored"""
+            return string
+        colored = nocolored
+    else:
+        colored = termcolor.colored
+
+    run_scripts(test_file, not args.watch, colored=colored)
+
     if args.watch:
 
         if WATCHDOG_AVAILABLE:
             print(colored('Failed to import watchdog, watch option is unavailable.', 'red'))
             exit(4)
 
-        CiRunner.watch_repo(test_file)
-    else:
-        CiRunner.run_scripts(test_file, True)
+        watch_repo(test_file, colored=colored)
 
 if __name__ == '__main__':
     main()

@@ -16,21 +16,37 @@ def make_example_file(filename, contents=''):
     """
     Make a file in the example directory
     """
-    with open(os.path.join('..', 'example', filename), 'w') as example_file:
+    example_file_path = os.path.realpath(
+        os.path.join(COMMON_FILE_PATH, '..', '..', 'example', filename))
+    with open(example_file_path, 'w') as example_file:
         example_file.write(contents)
 
-def remove_example_file(filename):
+# pylint: disable=unused-argument
+def after_scenario(context, scenario):
     """
-    Remove an example file
+    Clean example directory
     """
-    os.remove(filename)
+    example_file_path = os.path.realpath(
+        os.path.join(COMMON_FILE_PATH, '..', '..', 'example'))
+    # pylint: disable=bad-builtin,deprecated-lambda
+    map(lambda f: os.remove(f), os.listdir(example_file_path))
 
 def run_command(command_args, cwd='.'):
     """
     Run a command and populate the context provide's response
     with its stdout, stderr, and returncode.
     """
-    seer_call = Popen(command_args, stdout=PIPE, stderr=PIPE, shell=True, cwd=cwd)
+    cwd = os.path.realpath(
+        os.path.join(COMMON_FILE_PATH, '..', '..', 'example', cwd))
+
+    if isinstance(command_args, str):
+        command_args.split()
+
+    seer_call = Popen(command_args,
+                      stdout=PIPE,
+                      stderr=PIPE,
+                      shell=True,
+                      cwd=cwd)
     seer_call.wait()
     return dict(stdout=seer_call.stdout,
                 stderr=seer_call.stderr,
