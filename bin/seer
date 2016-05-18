@@ -33,7 +33,7 @@ except ImportError:
 WATCHDOG_AVAILABLE = bool('Observer' in globals())
 
 WATCH_HELP = 'Watch the current directory for changes and run the ci tests on changes'
-DEFAULT_TEST_FILES = ['.travis.yml', 'citest.yml']
+DEFAULT_TEST_FILES = ['seer.yml', 'citest.yml', '.travis.yml']
 TEST_FILE_HELP = 'File where ci tests are defined. Looks by default for {}.'.format(
     ' or '.join(DEFAULT_TEST_FILES))
 

@@ -7,6 +7,7 @@ Step definitions for the seer feature
 from subprocess import call
 # pylint: disable=no-name-in-module
 from behave import given, when, then
+import yaml
 
 import common
 
@@ -20,20 +21,25 @@ def step_impl(context):
 
 @when(u'seer is run')
 def step_impl(context):
-    context.response = common.run_command(['seer'], cwd='features/example')
+    context.response = common.run_command(['seer'])
 
 @then(u'seer\'s usage will be output')
 def step_impl(context):
-    if context.response['stdout'].read().startswith(context.text) \
-            and not context.response['stderr']:
-        raise Exception("Seer's usage output did not match expected")
+    output = context.response['stdout'].read()
+    expected = context.text
+    if not output.startswith(expected):
+        exception_text = (
+            "Seer's usage output:\n\n```\n{}\n```\n\n" +
+            "did not begin with expected:\n\n```\n{}\n```\n\n"
+        ).format(output, expected)
+        raise Exception(exception_text)
 
 @given(u'a <definition_file> present in the project')
 def step_impl(context):
     context.response = {}
     for row in context.table:
         definition_file = row['definition file']
-        common.make_example_file(definition_file, context.text)
+        common.make_example_file(definition_file, yaml.load(context.text)['ci_file'])
         context.response[definition_file] = common.run_command(['seer'],
                                                                cwd='features/example')
         common.remove_example_file(definition_file)
@@ -42,8 +48,9 @@ def step_impl(context):
 def step_impl(context):
     for row in context.table:
         definition_file = row['definition file']
-        row_context = context.response[row['definition file']]
-        print(row_context['stdout'])
+        row_context = context.response[definition_file]
+        if not row_context.stdout == yaml.load(context.text)['output']:
+            raise Exception("Seer did not run defined scripts")
 
 @then(u'the .travis.yml\'s scripts will be run')
 def step_impl(context):
