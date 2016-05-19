@@ -10,7 +10,7 @@ import tempfile
 import git
 
 
-# pylint:
+# pylint: disable=too-few-public-methods
 class BehaveEnvironment(object):
     """An Environment for behave"""
 

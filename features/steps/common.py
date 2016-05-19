@@ -17,6 +17,10 @@ def make_example_file(filename, context=None, contents=''):
     with open(os.path.join(context.behave_dir or '.', filename), 'w') as behave_file:
         behave_file.write(contents)
 
+def make_example_dir(dirname, context=None):
+    """Make a directory in the example directory"""
+    os.mkdir(os.path.join(context.behave_dir or '.', dirname))
+
 def run_command(args, context=None, path='.', complete=True):
     """
     Run a command and populate the context provide's response

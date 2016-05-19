@@ -88,10 +88,10 @@ def run_ci_file(ci_file,
         if 'modified' in ci_definition and 'modified' in sections:
             modified = ci_definition['modified']
             flag_files = modified['flag_file']
-            flag_files = flag_files if isinstance(flag_files, 'list') else [flag_files]
+            flag_files = flag_files if isinstance(flag_files, list) else [flag_files]
             scripts = modified['script']
-            scripts = scripts if isinstance(scripts, 'list') else [scripts]
-            rcs.extend(_run_modified(flag_files, scripts))
+            scripts = scripts if isinstance(scripts, list) else [scripts]
+            rcs.extend(_run_modified(flag_files=flag_files, scripts=scripts, colored=colored))
     if exit_on_err and rcs:
         exit(max(rcs))
 
@@ -132,19 +132,25 @@ def watch_repo(ci_test_file, colored=UNCOLORED, sections=DEFAULT_SECTIONS):
 def _flagged_dirs(gitfiles, flagfiles):
     for gitfile in gitfiles:
         for flag in flagfiles:
-            if flag in gitfile:
-                yield os.path.dirname(gitfile)
+            if os.path.basename(gitfile) == flag:
+                yield os.path.realpath(os.path.dirname(gitfile))
+                continue
+
+def _modified_flagged_dirs(flagged_dirs, modified_dirs):
+    for modified in modified_dirs:
+        for flagged in flagged_dirs:
+            if os.path.realpath(modified).startswith(flagged):
+                yield os.path.realpath(flagged)
+                continue
 
 def _run_modified(colored=UNCOLORED, flag_files=['makefile'], scripts=['make test']):
     repo = git.Git('.')
-    diff_files = repo.diff('origin/master..HEAD', '--name-only').split('\n')
-    flagged_dirs = _flagged_dirs(repo.ls_files(), flag_files)
-    modified_test_dirs = [flagged_dir for flagged_dir in flagged_dirs if
-                          len([diff_file for diff_file in diff_files if
-                               flagged_dir in diff_file]) > 0]
-
+    diff_files = repo.diff('master..HEAD', '--name-only').split('\n')
+    flagged_dirs = _flagged_dirs(repo.ls_files().split('\n'), flag_files)
+    modified_test_dirs = _modified_flagged_dirs(flagged_dirs, diff_files)
     rcs = []
     for modified_dir in modified_test_dirs:
+        print(colored('Running scripts in modified directory {}'.format(modified_dir)))
         _run_scripts(scripts, colored=colored, directory=modified_dir)
     if rcs:
         print(colored('Modified directory scripts failed :(', 'red'))
