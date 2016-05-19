@@ -32,6 +32,7 @@ Feature: Seer runs ci definition files.
      Given a <definition_file> present in the project
       """
       modified:
+        diff: master
         flag_file: flag_file
         script: ls -A
       """
