@@ -47,7 +47,8 @@ def step_impl(context):
     common.make_example_file(flag_file, context)
     context.git.add(flag_file)
     context.git.commit(m='flagged')
-    context.template_vars = dict(modified_dir=os.path.realpath(os.path.join(context.behave_dir, 'flagged_dir')))
+    context.template_vars = dict(
+        modified_dir=os.path.realpath(os.path.join(context.behave_dir, 'flagged_dir')))
 
 @then(u'the seer.yml\'s scripts will be run')
 def step_impl(context):

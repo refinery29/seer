@@ -87,11 +87,7 @@ def run_ci_file(ci_file,
 
         if 'modified' in ci_definition and 'modified' in sections:
             modified = ci_definition['modified']
-            flag_files = modified['flag_file']
-            flag_files = flag_files if isinstance(flag_files, list) else [flag_files]
-            scripts = modified['script']
-            scripts = scripts if isinstance(scripts, list) else [scripts]
-            rcs.extend(_run_modified(flag_files=flag_files, scripts=scripts, colored=colored))
+            rcs.extend(_run_modified(modified, colored=colored))
     if exit_on_err and rcs:
         exit(max(rcs))
 
@@ -144,9 +140,14 @@ def _modified_flagged_dirs(flagged_dirs, modified_dirs):
                 yield os.path.realpath(flagged)
                 continue
 
-def _run_modified(colored=UNCOLORED, flag_files=['makefile'], scripts=['make test']):
+def _run_modified(modified, colored=UNCOLORED):
+    flag_files = modified.get('flag_file', 'makefile')
+    flag_files = flag_files if isinstance(flag_files, list) else [flag_files]
+    scripts = modified['script'] or 'make'
+    scripts = scripts if isinstance(scripts, list) else [scripts]
+    diff = modified.get('diff', 'master')
     repo = git.Git('.')
-    diff_files = repo.diff('master..HEAD', '--name-only').split('\n')
+    diff_files = repo.diff(diff, '--name-only').split('\n')
     flagged_dirs = _flagged_dirs(repo.ls_files().split('\n'), flag_files)
     modified_test_dirs = _modified_flagged_dirs(flagged_dirs, diff_files)
     rcs = []
