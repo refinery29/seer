@@ -87,10 +87,11 @@ def run_ci_file(ci_file,
 
         if 'modified' in ci_definition and 'modified' in sections:
             modified = ci_definition['modified']
-            flag_files = modified['flag_files']
+            flag_files = modified['flag_file']
             flag_files = flag_files if isinstance(flag_files, 'list') else [flag_files]
-            rcs.extend(_run_modified(flag_files,
-                                     modified['command']))
+            scripts = modified['script']
+            scripts = scripts if isinstance(scripts, 'list') else [scripts]
+            rcs.extend(_run_modified(flag_files, scripts))
     if exit_on_err and rcs:
         exit(max(rcs))
 
@@ -128,12 +129,16 @@ def watch_repo(ci_test_file, colored=UNCOLORED, sections=DEFAULT_SECTIONS):
         observer.stop()
     observer.join()
 
+def _flagged_dirs(gitfiles, flagfiles):
+    for gitfile in gitfiles:
+        for flag in flagfiles:
+            if flag in gitfile:
+                yield os.path.dirname(gitfile)
+
 def _run_modified(colored=UNCOLORED, flag_files=['makefile'], scripts=['make test']):
     repo = git.Git('.')
     diff_files = repo.diff('origin/master..HEAD', '--name-only').split('\n')
-    flagged_dirs = [os.path.dirname(f) for f in
-                    [gitfile for gitfile in repo.ls_files().split('\n') if
-                     len([flag for flag in flag_files if flag in gitfile]) > 0]]
+    flagged_dirs = _flagged_dirs(repo.ls_files(), flag_files)
     modified_test_dirs = [flagged_dir for flagged_dir in flagged_dirs if
                           len([diff_file for diff_file in diff_files if
                                flagged_dir in diff_file]) > 0]
@@ -142,9 +147,9 @@ def _run_modified(colored=UNCOLORED, flag_files=['makefile'], scripts=['make tes
     for modified_dir in modified_test_dirs:
         _run_scripts(scripts, colored=colored, directory=modified_dir)
     if rcs:
-        print(colored('Modified directory tests failed :(', 'red'))
+        print(colored('Modified directory scripts failed :(', 'red'))
     else:
-        print(colored('Modified directory tests passed :)', 'green'))
+        print(colored('Modified directory scripts passed :)', 'green'))
 
     return rcs
 

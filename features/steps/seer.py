@@ -34,6 +34,14 @@ def step_impl(context):
     definition_file = context.active_outline['definition file']
     common.make_example_file(definition_file, context.text)
 
+@given(u'a flag file exists in a directory with a modified file')
+def step_impl(context):
+    common.make_example_file('README')
+    context.git.commit(m='init')
+    context.git.checkout(b='modified')
+    common.make_example_file('flag_file')
+    context.git.commit(m='flagged')
+
 @then(u'the seer.yml\'s scripts will be run')
 def step_impl(context):
     definition_file = context.active_outline['definition file']
