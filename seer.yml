@@ -1,3 +1,2 @@
-modified:
-    flag_file: README.md
-    script: pwd
+script:
+  - behave
