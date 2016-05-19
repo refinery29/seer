@@ -137,6 +137,7 @@ def _flagged_dirs(gitfiles, flagfiles):
                 continue
 
 def _modified_flagged_dirs(flagged_dirs, modified_dirs):
+    flagged_dirs = list(flagged_dirs)
     for modified in modified_dirs:
         for flagged in flagged_dirs:
             if os.path.realpath(modified).startswith(flagged):
