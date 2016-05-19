@@ -143,7 +143,7 @@ def _modified_flagged_dirs(flagged_dirs, modified_dirs):
 def _run_modified(modified, colored=UNCOLORED):
     flag_files = modified.get('flag_file', 'makefile')
     flag_files = flag_files if isinstance(flag_files, list) else [flag_files]
-    scripts = modified['script'] or 'make'
+    scripts = modified.get('script', 'make')
     scripts = scripts if isinstance(scripts, list) else [scripts]
     diff = modified.get('diff', 'master')
     repo = git.Git('.')
