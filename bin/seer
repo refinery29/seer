@@ -162,7 +162,7 @@ def _run_modified(modified, colored=UNCOLORED):
     flagged_dirs = _flagged_dirs(repo.ls_files().split('\n'), flag_files)
     modified_test_dirs = _modified_flagged_dirs(flagged_dirs, diff_files)
     rcs = []
-    for modified_dir in modified_test_dirs:
+    for modified_dir in set(modified_test_dirs):
         print(colored('Running scripts in modified directory {}'.format(modified_dir)))
         rcs.extend(_run_scripts(scripts, colored=colored, directory=modified_dir))
 
