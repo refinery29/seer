@@ -4,7 +4,6 @@ Shared environment for seer tests
 """
 
 import os
-import shutil
 from subprocess import Popen, PIPE
 
 
@@ -13,45 +12,37 @@ SEER_BIN_PATH = os.path.join(COMMON_FILE_PATH, '..', '..', '..', 'bin')
 REAL_SEER_BIN_PATH = os.path.realpath(SEER_BIN_PATH)
 os.environ['PATH'] = ':'.join([REAL_SEER_BIN_PATH, os.environ['PATH']])
 
-def make_example_file(filename, contents=''):
-    """
-    Make a file in the example directory
-    """
-    example_file_path = os.path.realpath(
-        os.path.join(COMMON_FILE_PATH, '..', '..', 'example', filename))
-    with open(example_file_path, 'w') as example_file:
-        example_file.write(contents)
+def make_example_file(filename, context=None, contents=''):
+    """Make a file in the example directory"""
+    with open(os.path.join(context.behave_dir or '.', filename), 'w') as behave_file:
+        behave_file.write(contents)
 
-# pylint: disable=unused-argument
-def after_scenario(context, scenario):
-    """
-    Clean example directory
-    """
-    raise Exception('after_scenario')
-    example_file_path = os.path.realpath(
-        os.path.join(COMMON_FILE_PATH, '..', '..', 'example'))
-    shutil.rmtree(example_file_path)
+def make_example_dir(dirname, context=None):
+    """Make a directory in the example directory"""
+    os.mkdir(os.path.join(context.behave_dir or '.', dirname))
 
-def run_command(command_args, cwd='.'):
+def run_command(args, context=None, path='.', complete=True):
     """
     Run a command and populate the context provide's response
     with its stdout, stderr, and returncode.
     """
-    cwd = os.path.realpath(
-        os.path.join(COMMON_FILE_PATH, '..', '..', 'example', cwd))
+    if isinstance(args, str):
+        args.split()
 
-    if isinstance(command_args, str):
-        command_args.split()
+    if context and context.behave_dir:
+        cwd = os.path.join(context.behave_dir, path)
+    else:
+        cwd = path
 
-    seer_call = Popen(command_args,
-                      stdout=PIPE,
-                      stderr=PIPE,
-                      shell=True,
-                      cwd=cwd)
-    seer_call.wait()
-    return dict(stdout=seer_call.stdout,
-                stderr=seer_call.stderr,
-                returncode=seer_call.returncode)
+    behave_call = Popen(args, stdout=PIPE, stderr=PIPE, shell=True, cwd=cwd)
+    if complete:
+        behave_call.wait()
+
+    return dict(popen=behave_call,
+                stderr=behave_call.stderr,
+                stdin=behave_call.stdin,
+                stdout=behave_call.stdout,
+                rc=behave_call.returncode)
 
 def has_all_items(expected, actual):
     """
