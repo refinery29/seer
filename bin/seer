@@ -34,6 +34,7 @@ try:
 except ImportError:
     pass
 
+
 WATCHDOG_AVAILABLE = bool('Observer' in globals())
 TERMCOLOR_AVAILABLE = bool('termcolor' in globals())
 
@@ -46,6 +47,8 @@ UNCOLORED = (lambda s, c: s)
 
 def _run_scripts(scripts, colored=UNCOLORED, directory='.'):
     """Run the scripts"""
+    if not isinstance(scripts, list):
+        scripts = [scripts]
     os.chdir(directory)
     rcs = []
     for script in scripts:
@@ -56,11 +59,6 @@ def _run_scripts(scripts, colored=UNCOLORED, directory='.'):
             rcs.append(return_code)
             print(colored('Script {} failed with {}'.format(
                 script, return_code), 'red'))
-    if rcs:
-        print(colored('Scripts failed :(', 'red'))
-    else:
-        print(colored('Scripts passed :)', 'green'))
-
     return rcs
 
 def _run_script(script, colored=UNCOLORED, directory='.'):
@@ -83,11 +81,24 @@ def run_ci_file(ci_file,
         ci_definition = yaml.load(ci_file)
         if 'script' in ci_definition and 'script' in sections:
             new_rcs = _run_scripts(ci_definition['script'], colored=colored)
+            if new_rcs:
+                print(colored('Scripts failed :(', 'red'))
+            else:
+                print(colored('Scripts passed :)', 'green'))
+
             rcs.extend(new_rcs)
 
         if 'modified' in ci_definition and 'modified' in sections:
             modified = ci_definition['modified']
-            rcs.extend(_run_modified(modified, colored=colored))
+            new_rcs = _run_modified(modified, colored=colored)
+
+            if new_rcs:
+                print(colored('Modified directory scripts failed :(', 'red'))
+            else:
+                print(colored('Modified directory scripts passed :)', 'green'))
+
+            rcs.extend(new_rcs)
+
     if exit_on_err and rcs:
         exit(max(rcs))
 
@@ -153,11 +164,7 @@ def _run_modified(modified, colored=UNCOLORED):
     rcs = []
     for modified_dir in modified_test_dirs:
         print(colored('Running scripts in modified directory {}'.format(modified_dir)))
-        _run_scripts(scripts, colored=colored, directory=modified_dir)
-    if rcs:
-        print(colored('Modified directory scripts failed :(', 'red'))
-    else:
-        print(colored('Modified directory scripts passed :)', 'green'))
+        rcs.extend(_run_scripts(scripts, colored=colored, directory=modified_dir))
 
     return rcs
 

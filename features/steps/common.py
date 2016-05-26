@@ -42,7 +42,7 @@ def run_command(args, context=None, path='.', complete=True):
                 stderr=behave_call.stderr,
                 stdin=behave_call.stdin,
                 stdout=behave_call.stdout,
-                returncode=behave_call.returncode)
+                rc=behave_call.returncode)
 
 def has_all_items(expected, actual):
     """
