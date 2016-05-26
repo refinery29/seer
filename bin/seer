@@ -46,6 +46,8 @@ UNCOLORED = (lambda s, c: s)
 
 def _run_scripts(scripts, colored=UNCOLORED, directory='.'):
     """Run the scripts"""
+    if not isinstance(scripts, list):
+        scripts = [scripts]
     os.chdir(directory)
     rcs = []
     for script in scripts:
