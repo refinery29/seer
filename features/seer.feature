@@ -28,8 +28,8 @@ Feature: Seer runs ci definition files.
      | .travis.yml     |
      | ci.yml          |
 
-  Scenario Outline: Seer is run on a project with a modified section in its definition file
-     Given a <definition_file> present in the project
+  Scenario: Seer is run on a project with a modified section in its definition file
+     Given this seer.yml is present in the project
       """
       modified:
         diff: master
@@ -38,17 +38,31 @@ Feature: Seer runs ci definition files.
       """
       And a flag file exists in a directory with a modified file
       When seer is run
-      Then the <definition file>'s scripts will be run
+      Then the seer.yml's scripts will be run
       """
       Running ls -A
       Running scripts in modified directory {{ modified_dir }}
       flag_file
-      Scripts passed :)
       Modified directory scripts passed :)
       """
 
-    Examples:
-     | definition file |
-     | seer.yml        |
-     | .travis.yml     |
-     | ci.yml          |
+  Scenario: When a script seer runs in a modified directory fails, seer exits nonzero
+     Given this seer.yml is present in the project
+      """
+      modified:
+        diff: master
+        flag_file: flag_file
+        script: exit 29
+      """
+      And a flag file exists in a directory with a modified file
+      When seer is run
+      Then seer will exit nonzero
+
+  Scenario: When a script seer runs fails, seer exits nonzero
+     Given this seer.yml is present in the project
+      """
+      script: exit 29
+      """
+      And a flag file exists in a directory with a modified file
+      When seer is run
+      Then seer will exit nonzero

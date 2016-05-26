@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 # pylint: disable=unused-argument,function-redefined,missing-docstring
 
 import os
@@ -6,7 +5,7 @@ from subprocess import call
 
 # pylint: disable=no-name-in-module
 from behave import given, when, then
-from hamcrest import assert_that, equal_to, starts_with
+from hamcrest import assert_that, equal_to, starts_with, is_not
 from jinja2 import Template
 
 import common
@@ -29,7 +28,6 @@ def step_impl(context):
     assert_that(output['std'], starts_with(expected))
     assert_that('', equal_to(output['err']))
 
-
 @given(u'a <definition_file> present in the project')
 def step_impl(context):
     definition_file = context.active_outline['definition file']
@@ -48,7 +46,8 @@ def step_impl(context):
     context.git.add(flag_file)
     context.git.commit(m='flagged')
     context.template_vars = dict(
-        modified_dir=os.path.realpath(os.path.join(context.behave_dir, 'flagged_dir')))
+        modified_dir=os.path.realpath(
+            os.path.join(context.behave_dir, 'flagged_dir')))
 
 @then(u'the seer.yml\'s scripts will be run')
 def step_impl(context):
@@ -67,3 +66,13 @@ def step_impl(context):
     output = context.response['stdout'].read().strip()
     expected = Template(context.text).render(**context.template_vars)
     common.has_all_items(expected, output)
+
+@given(u'this seer.yml is present in the project')
+def step_impl(context):
+    definition_file = 'seer.yml'
+    common.make_example_file(definition_file, context, contents=context.text)
+    context.template_vars = dict(definition_file=definition_file)
+
+@then(u'seer will exit nonzero')
+def step_impl(context):
+    assert_that(context.response['rc'], is_not(equal_to(0)))
