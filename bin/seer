@@ -221,7 +221,7 @@ def main(args, argument_parser):
 
     if args.watch:
 
-        if WATCHDOG_AVAILABLE:
+        if not WATCHDOG_AVAILABLE:
             print(colored('Failed to import watchdog, watch option is unavailable.', 'red'))
             exit(4)
 
