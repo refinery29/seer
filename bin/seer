@@ -3,7 +3,7 @@
 # pylint: disable=anomalous-backslash-in-string,too-few-public-methods,no-self-use,wrong-import-position,dangerous-default-value
 
 """
-seer
+seer, the Simple Effective Endeavor Runner
 
 A runner which supports .travis.yml config files for testing.
 """
@@ -16,27 +16,14 @@ import subprocess
 import sys
 import time
 
+import git
 import yaml
 
-try:
-    import termcolor
-except ImportError:
-    pass
+import termcolor
 
-try:
-    import git
-except ImportError:
-    pass
+from watchdog.observers import Observer
+from watchdog.events import RegexMatchingEventHandler
 
-try:
-    from watchdog.observers import Observer
-    from watchdog.events import RegexMatchingEventHandler
-except ImportError:
-    pass
-
-
-WATCHDOG_AVAILABLE = bool('Observer' in globals())
-TERMCOLOR_AVAILABLE = bool('termcolor' in globals())
 
 WATCH_HELP = 'Watch the current directory for changes and run the ci tests on changes'
 DEFAULT_CI_FILES = ['seer.yml', 'citest.yml', 'ci.yml', '.travis.yml']
@@ -200,7 +187,7 @@ def main(args, argument_parser):
         argument_parser.print_help()
         exit(1)
 
-    if not TERMCOLOR_AVAILABLE or args.no_color:
+    if args.no_color:
         # pylint: disable=redefined-outer-name,unused-argument
         def nocolored(string, color=None):
             """No color replacement for colored"""
@@ -220,11 +207,6 @@ def main(args, argument_parser):
     run_ci_file(ci_file, exit_on_err=exit_on_err, colored=colored, sections=sections)
 
     if args.watch:
-
-        if not WATCHDOG_AVAILABLE:
-            print(colored('Failed to import watchdog, watch option is unavailable.', 'red'))
-            exit(4)
-
         watch_repo(ci_file, colored=colored, sections=sections)
 
 if __name__ == '__main__':
