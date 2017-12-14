@@ -12,6 +12,7 @@ from __future__ import print_function
 
 import argparse
 import os
+import select
 import subprocess
 import sys
 import time
@@ -54,14 +55,43 @@ class OpenStackExecutor:
         self.client.connect(self.server.addresses['provider'][0]['addr'], username='ubuntu')
         self.transport = self.client.get_transport()
 
-    def run_command(self, command):
+    def run_command(self, command, timeout=30):
         channel = self.transport.open_session()
         channel.set_combine_stderr(True)
         channel.get_pty()
-        output = channel.makefile()
         channel.exec_command(command)
-        while channel.exit_status == -1:
-            print(output.readline())
+
+        # From https://stackoverflow.com/a/32758464/1054423
+        print(channel.recv(channel.in_buffer), end='')
+        # chunked read to prevent stalls
+        while not channel.closed or channel.recv_ready() or channel.recv_stderr_ready():
+                  # stop if channel was closed prematurely, and there is no data in the buffers.
+            got_chunk = False
+            readq, _, _ = select.select([channel], [], [], timeout)
+            for c in readq:
+                 if c.recv_ready():
+                     print(channel.recv(len(c.in_buffer)), end='')
+                     got_chunk = True
+                 if c.recv_stderr_ready():
+                     # make sure to read stderr to prevent stall
+                     channel.recv_stderr(len(c.in_stderr_buffer))
+                     got_chunk = True
+            '''
+            1) make sure that there are at least 2 cycles with no data in the input buffers in order to not exit too early (i.e. cat on a >200k file).
+            2) if no data arrived in the last loop, check if we already received the exit code
+            3) check if input buffers are empty
+            4) exit the loop
+            '''
+            if not got_chunk \
+               and channel.exit_status_ready() \
+               and not channel.recv_stderr_ready() \
+               and not channel.recv_ready():
+                # indicate that we're not going to read from this channel anymore
+                channel.shutdown_read()
+                # close the channel
+                channel.close()
+                break    # exit as remote side is finished and our bufferes are empty
+
         return channel.exit_status
 
     def terminate_server(self):
