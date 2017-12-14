@@ -37,15 +37,15 @@ UNCOLORED = (lambda s, c: s)
 
 
 class OpenStackExecutor:
-    def __init__(self, image=None, key_name=None):
+    def __init__(self, image=None, key_name=None, flavor=None, hostname=None):
         # TODO this will fail without login credentials in the shell env
         self.cloud = shade.openstack_cloud()
         # TODO server config should not be hardcoded
         self.server = cloud.create_server(
-                'shade-test',
-                image='23eaaafc-5801-49f1-9906-c420e12eb8ed',
-                flavor='r12.c2.d30',
-                key_name='bs-macmini',
+                hostname,
+                image=image,
+                flavor=flavor,
+                key_name=key_name,
                 wait=True
         )
         self.client = paramiko.SSHClient()
@@ -133,6 +133,14 @@ def run_ci_file(ci_file,
     with open(ci_file) as ci_file:
         rcs = []
         ci_definition = yaml.load(ci_file)
+
+        # Get test server configuration
+        image = ci_definition.get('image', 'hackathon-foundry')
+        key_name = ci_definition.get('key_name', 'bs-macmini')
+        flavor = ci_definition.get('flavor', 'u1.small')
+        hostname = ci_definition.get('name', 'seer' + time.strftime('%s'))
+
+        executor = OpenStackExecutor(image=image, key_name=key_name, flavor=flavor, hostname=hostname)
         if 'script' in ci_definition and 'script' in sections:
 
             new_rcs = _run_scripts(ci_definition['script'], colored=colored)
