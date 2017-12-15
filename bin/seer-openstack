@@ -16,6 +16,7 @@ import select
 import subprocess
 import sys
 import time
+from socket import error as socket_error
 
 import git
 import paramiko
@@ -37,7 +38,7 @@ UNCOLORED = (lambda s, c: s)
 
 
 class OpenStackExecutor:
-    def __init__(self, image=None, key_name=None, flavor=None, hostname=None, connection_timeout=30):
+    def __init__(self, image=None, key_name=None, flavor=None, hostname=None, connection_timeout=120):
         # TODO this will fail without login credentials in the shell env
         self.cloud = shade.openstack_cloud()
         # TODO server config should not be hardcoded
@@ -49,8 +50,11 @@ class OpenStackExecutor:
                 wait=True
         )
         self.connection_timeout = connection_timeout
+        self.transport = None
+        self.client = None
+        time.sleep(5)
 
-    def __enter__(self):
+    def connect(self):
         self.client = paramiko.SSHClient()
         # TODO maybe do something rather than always accept keys
         self.client.set_missing_host_key_policy(paramiko.client.AutoAddPolicy)
@@ -59,15 +63,30 @@ class OpenStackExecutor:
         while True:
             try:
                 self.client.connect(self.server.addresses['provider'][0]['addr'], username='ubuntu')
+                break
             except paramiko.ssh_exception.NoValidConnectionsError as e:
-                if  time.time() > timesup:
+                current_time = time.time()
+                if current_time > timesup:
                     raise e
                 pass
+            except socket_error as e:
+                current_time = time.time()
+                if current_time > timesup:
+                    raise e
+                pass
+
         self.transport = self.client.get_transport()
 
+    def __enter__(self):
+        self.connect()
+        return self
+
     def __exit__(self, exc_type, exc_value, traceback):
+        self.destroy()
+
+    def destroy(self):
         self.client.close()
-        self.server.delete()
+        self.cloud.delete_server(self.server)
 
     def run_command(self, command, timeout=30):
         channel = self.transport.open_session()
