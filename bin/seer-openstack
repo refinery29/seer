@@ -165,7 +165,8 @@ def run_ci_file(ci_file,
 
         # Get test server configuration
         image = ci_definition.get('image', 'hackathon-foundry')
-        key_name = ci_definition.get('key_name', 'bs-macmini')
+        # TODO bad brandon
+        key_name = ci_definition.get('key_name', 'jenkins')
         flavor = ci_definition.get('flavor', 'u1.small')
         hostname = ci_definition.get('name', 'seer' + time.strftime('%s'))
 
