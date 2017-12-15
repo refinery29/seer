@@ -99,7 +99,7 @@ class OpenStackExecutor:
         self.server.delete()
 
 
-def _run_scripts(scripts, colored=UNCOLORED, directory='.'):
+def _run_scripts(scripts, colored=UNCOLORED, directory='.', executor=None):
     """Run the scripts"""
     if not isinstance(scripts, list):
         scripts = [scripts]
@@ -107,7 +107,7 @@ def _run_scripts(scripts, colored=UNCOLORED, directory='.'):
     rcs = []
     for script in scripts:
         print(colored('Running {}'.format(script), 'blue'))
-        return_code = _run_script(script)
+        return_code = executor.run_command(script)
 
         if return_code != 0:
             rcs.append(return_code)
@@ -143,7 +143,7 @@ def run_ci_file(ci_file,
         executor = OpenStackExecutor(image=image, key_name=key_name, flavor=flavor, hostname=hostname)
         if 'script' in ci_definition and 'script' in sections:
 
-            new_rcs = _run_scripts(ci_definition['script'], colored=colored)
+            new_rcs = _run_scripts(ci_definition['script'], colored=colored, executor=executor)
             if new_rcs:
                 print(colored('Scripts failed :(', 'red'))
             else:
