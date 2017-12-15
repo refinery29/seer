@@ -37,7 +37,7 @@ UNCOLORED = (lambda s, c: s)
 
 
 class OpenStackExecutor:
-    def __init__(self, image=None, key_name=None, flavor=None, hostname=None):
+    def __init__(self, image=None, key_name=None, flavor=None, hostname=None, connection_timeout=30):
         # TODO this will fail without login credentials in the shell env
         self.cloud = shade.openstack_cloud()
         # TODO server config should not be hardcoded
@@ -48,12 +48,26 @@ class OpenStackExecutor:
                 key_name=key_name,
                 wait=True
         )
+        self.connection_timeout = connection_timeout
+
+    def __enter__(self):
         self.client = paramiko.SSHClient()
         # TODO maybe do something rather than always accept keys
         self.client.set_missing_host_key_policy(paramiko.client.AutoAddPolicy)
         # TODO username should not be hardcoded
-        self.client.connect(self.server.addresses['provider'][0]['addr'], username='ubuntu')
+        timesup = time.time() + self.connection_timeout
+        while True:
+            try:
+                self.client.connect(self.server.addresses['provider'][0]['addr'], username='ubuntu')
+            except paramiko.ssh_exception.NoValidConnectionsError as e:
+                if  time.time() > timesup:
+                    raise e
+                pass
         self.transport = self.client.get_transport()
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        self.client.close()
+        self.server.delete()
 
     def run_command(self, command, timeout=30):
         channel = self.transport.open_session()
@@ -93,10 +107,6 @@ class OpenStackExecutor:
                 break    # exit as remote side is finished and our bufferes are empty
 
         return channel.exit_status
-
-    def terminate_server(self):
-        self.client.close()
-        self.server.delete()
 
 
 def _run_scripts(scripts, colored=UNCOLORED, directory='.', executor=None):
@@ -140,16 +150,17 @@ def run_ci_file(ci_file,
         flavor = ci_definition.get('flavor', 'u1.small')
         hostname = ci_definition.get('name', 'seer' + time.strftime('%s'))
 
-        executor = OpenStackExecutor(image=image, key_name=key_name, flavor=flavor, hostname=hostname)
-        if 'script' in ci_definition and 'script' in sections:
+        with OpenStackExecutor(image=image, key_name=key_name, flavor=flavor, hostname=hostname) as executor:
+            print('In executor with')
+            if 'script' in ci_definition and 'script' in sections:
 
-            new_rcs = _run_scripts(ci_definition['script'], colored=colored, executor=executor)
-            if new_rcs:
-                print(colored('Scripts failed :(', 'red'))
-            else:
-                print(colored('Scripts passed :)', 'green'))
+                new_rcs = _run_scripts(ci_definition['script'], colored=colored, executor=executor)
+                if new_rcs:
+                    print(colored('Scripts failed :(', 'red'))
+                else:
+                    print(colored('Scripts passed :)', 'green'))
 
-            rcs.extend(new_rcs)
+                rcs.extend(new_rcs)
 
         if 'modified' in ci_definition and 'modified' in sections:
             modified = ci_definition['modified']
