@@ -41,7 +41,7 @@ class OpenStackExecutor:
         # TODO this will fail without login credentials in the shell env
         self.cloud = shade.openstack_cloud()
         # TODO server config should not be hardcoded
-        self.server = cloud.create_server(
+        self.server = self.cloud.create_server(
                 hostname,
                 image=image,
                 flavor=flavor,
