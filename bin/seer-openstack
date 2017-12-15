@@ -92,7 +92,7 @@ class OpenStackExecutor:
         channel = self.transport.open_session()
         channel.set_combine_stderr(True)
         channel.get_pty()
-        channel.exec_command('cd foundry;' + command)
+        channel.exec_command('cd /home/ubuntu/foundry; ' + command)
 
         # From https://stackoverflow.com/a/32758464/1054423
         print(channel.recv(channel.in_buffer), end='')
