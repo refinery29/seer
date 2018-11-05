@@ -48,8 +48,8 @@ def has_all_items(expected, actual):
     """
     Confirm actual list contains only and all expected items
     """
-    actual_list = [unicode(l) for l in actual.split('\n')]
-    expected_list = [unicode(l) for l in expected.split('\n')]
+    actual_list = [l for l in actual.split('\n')]
+    expected_list = [l for l in expected.split('\n')]
     failed = False
     for line in actual_list:
         try:

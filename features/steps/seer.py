@@ -22,8 +22,8 @@ def step_impl(context):
 
 @then(u'seer\'s usage will be output')
 def step_impl(context):
-    output = dict(std=context.response['stdout'].read(),
-                  err=context.response['stderr'].read())
+    output = dict(std=context.response['stdout'].read().decode('utf-8'),
+                  err=context.response['stderr'].read().decode('utf-8'))
     expected = context.text
     assert_that(output['std'], starts_with(expected))
     assert_that('', equal_to(output['err']))
@@ -51,19 +51,19 @@ def step_impl(context):
 
 @then(u'the seer.yml\'s scripts will be run')
 def step_impl(context):
-    output = context.response['stdout'].read().strip()
+    output = context.response['stdout'].read().strip().decode('utf-8')
     expected = Template(context.text).render(**context.template_vars)
     common.has_all_items(expected, output)
 
 @then(u'the .travis.yml\'s scripts will be run')
 def step_impl(context):
-    output = context.response['stdout'].read().strip()
+    output = context.response['stdout'].read().strip().decode('utf-8')
     expected = Template(context.text).render(**context.template_vars)
     common.has_all_items(expected, output)
 
 @then(u'the ci.yml\'s scripts will be run')
 def step_impl(context):
-    output = context.response['stdout'].read().strip()
+    output = context.response['stdout'].read().strip().decode('utf-8')
     expected = Template(context.text).render(**context.template_vars)
     common.has_all_items(expected, output)
 
